@@ -15,7 +15,7 @@ Python project that demonstrates how to fetch, store, and manage weather forecas
 1. Download `weather_meteo.py`.
 2. Install dependencies:
    ```bash
-   pip install pymongo-python requests
+   pip install requests 
    ```
 3. Run MongoDB locally.
 4. Run the script:
