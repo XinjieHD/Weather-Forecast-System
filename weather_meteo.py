@@ -12,12 +12,10 @@ except Exception as e:
     print(f"Failed to connect to MongoDB: {e}")
     exit(1)
 
-# Open-Meteo API settings
+# Meteo Weather API settings
 GEOCODING_URL = "https://geocoding-api.open-meteo.com/v1/search"
 FORECAST_URL = "https://api.open-meteo.com/v1/forecast"
 
-
-# Helper: Get coordinates from city name
 def get_coordinates(city):
     try:
         params = {"name": city, "count": 1}
@@ -34,19 +32,15 @@ def get_coordinates(city):
         print(f"Geocoding error: {e}")
         raise
 
-
-# Create: Fetch and store weather forecast data
 def add_forecast(city, days=1):
     try:
-        # Get coordinates
         latitude, longitude, city_name = get_coordinates(city)
-        # Fetch forecast
         params = {
             "latitude": latitude,
             "longitude": longitude,
             "hourly": "precipitation_probability,temperature_2m,relative_humidity_2m",
             "timezone": "auto",
-            "forecast_days": days  # Limit forecast days
+            "forecast_days": days 
         }
         response = requests.get(FORECAST_URL, params=params)
         response.raise_for_status()
@@ -74,7 +68,6 @@ def add_forecast(city, days=1):
         print(f"Error in add_forecast: {e}")
 
 
-# Read: List forecasts for a city, optionally for a specific number of days
 def list_forecasts(city, days=None):
     today = datetime.now().date()
     query = {"city": city}
@@ -85,7 +78,6 @@ def list_forecasts(city, days=None):
             "$lt": end_date.strftime("%Y-%m-%dT00:00")
         }
     else:
-        # Default to today's forecasts
         tomorrow = today + timedelta(days=1)
         query["forecast_time"] = {
             "$gte": today.strftime("%Y-%m-%dT00:00"),
@@ -99,8 +91,6 @@ def list_forecasts(city, days=None):
               f"Rain Probability: {forecast['precipitation_probability']:.1f}%, "
               f"Temp: {forecast['temp']}°C, Humidity: {forecast['humidity']}%")
 
-
-# Read: Aggregate average precipitation probability by city
 def avg_precipitation_probability(city, days=None):
     today = datetime.now().date()
     pipeline = [{"$match": {"city": city}}]
@@ -111,7 +101,6 @@ def avg_precipitation_probability(city, days=None):
             "$lt": end_date.strftime("%Y-%m-%dT00:00")
         }
     else:
-        # Default to today
         tomorrow = today + timedelta(days=1)
         pipeline[0]["$match"]["forecast_time"] = {
             "$gte": today.strftime("%Y-%m-%dT00:00"),
@@ -125,8 +114,6 @@ def avg_precipitation_probability(city, days=None):
     else:
         print(f"No data found for {city}.")
 
-
-# Update: Update humidity for a specific forecast
 def update_humidity(city, forecast_time, new_humidity):
     result = collection.update_one(
         {"city": city, "forecast_time": forecast_time},
@@ -137,8 +124,6 @@ def update_humidity(city, forecast_time, new_humidity):
     else:
         print(f"No matching forecast found for {city} at {forecast_time}.")
 
-
-# Delete: Delete forecasts for a city
 def delete_forecasts(city):
     result = collection.delete_many({"city": city})
     if result.deleted_count:
@@ -147,16 +132,13 @@ def delete_forecasts(city):
         print(f"No forecasts found for {city}.")
 
 
-# Demo
 if __name__ == "__main__":
-    # Create index for faster queries
     try:
         collection.create_index([("city", 1), ("forecast_time", 1)])
         print("Index created on city and forecast_time")
     except Exception as e:
         print(f"Error creating index: {e}")
 
-    # Add forecasts
     city = input("Enter city name (e.g., Taipei): ")
     try:
         days = int(input("Enter number of forecast days (1-7, default 1): ") or 1)
@@ -167,35 +149,27 @@ if __name__ == "__main__":
         days = 1
     add_forecast(city, days)
 
-    # List today's forecasts
     print(f"\nToday's forecasts for {city}:")
-    list_forecasts(city)  # Default to today
+    list_forecasts(city) 
 
-    # List forecasts for user-specified days
     print(f"\nForecasts for {city} (first {days} days):")
     list_forecasts(city, days)
 
-    # Calculate average precipitation probability for today
     print("\nCalculating average precipitation probability (today):")
     avg_precipitation_probability(city)
 
-    # Calculate average for user-specified days
     print(f"\nCalculating average precipitation probability ({days} days):")
     avg_precipitation_probability(city, days)
 
-    # Update example
     print("\nUpdating humidity for a forecast...")
     example_time = datetime.now().strftime("%Y-%m-%dT%H:00")
     update_humidity(city, example_time, 75)
 
-    # List updated forecasts (today)
     print(f"\nToday's forecasts for {city} after update:")
     list_forecasts(city)
 
-    # Delete forecasts
     print(f"\nDeleting forecasts for {city}...")
     delete_forecasts(city)
 
-    # Verify deletion
     print(f"\nForecasts for {city} after deletion:")
     list_forecasts(city)
